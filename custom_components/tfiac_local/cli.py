@@ -55,6 +55,7 @@ async def _run(args: argparse.Namespace) -> int:
         target_temp=protocol_temp,
         fan_mode=args.fan,
         swing_mode=args.swing,
+        refresh_after=True,
     )
     print(
         json.dumps(

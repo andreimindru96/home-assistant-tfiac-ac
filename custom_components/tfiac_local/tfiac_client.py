@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import socket
+from collections.abc import Mapping
 from dataclasses import dataclass
 from time import time
 from typing import Any
@@ -107,6 +108,11 @@ class TfiacStatus:
             if child.tag:
                 values[child.tag] = child.text or ""
 
+        return cls.from_values(values)
+
+    @classmethod
+    def from_values(cls, values: Mapping[str, str]) -> "TfiacStatus":
+        """Build a status object from protocol field values."""
         current = values.get("IndoorTemp")
         return cls(
             device_name=values.get("DeviceName", "TFIAC AC"),
@@ -119,7 +125,7 @@ class TfiacStatus:
                 values.get("WindDirection_H", "off"),
                 values.get("WindDirection_V", "off"),
             ),
-            raw=values,
+            raw=dict(values),
         )
 
 
@@ -190,9 +196,11 @@ class TfiacClient:
         target_temp: float | None = None,
         fan_mode: str | None = None,
         swing_mode: str | None = None,
+        refresh_before: bool = False,
+        refresh_after: bool = False,
     ) -> TfiacStatus:
         """Update the state by sending a full SetMessage payload."""
-        status = await self.async_update()
+        status = await self.async_update(force=refresh_before)
         raw = dict(status.raw)
 
         raw["TurnOn"] = "on" if (power if power is not None else status.is_on) else "off"
@@ -217,7 +225,13 @@ class TfiacClient:
         )
 
         await self._send(SET_MESSAGE.format(seq=self.seq, message=payload))
-        return await self.async_update(force=True)
+        self._status = TfiacStatus.from_values(raw)
+        self._last_update = time()
+
+        if refresh_after:
+            return await self.async_update(force=True)
+
+        return self._status
 
     async def async_turn_off(self) -> TfiacStatus:
         """Turn the AC off."""

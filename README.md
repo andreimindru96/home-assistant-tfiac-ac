@@ -77,7 +77,9 @@ python3 -m custom_components.tfiac_local.cli set \
   - `dry` -> `dehumi`
   - `fan_only` -> `fan`
   - `auto` -> `selfFeel`
-- Power-off is handled separately from the HVAC mode.
+- Selecting a non-off HVAC mode or using turn-on starts the unit.
+- Changing target temperature, fan mode, or swing mode preserves the current power state.
+- Home Assistant shows setting changes optimistically, then normal polling verifies the device state.
 - The protocol is local UDP/XML and does not need your Intelligent AC credentials.
 
 ## Source references

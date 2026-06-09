@@ -196,7 +196,7 @@ class TfiacClimateEntity(ClimateEntity):
         if ATTR_TEMPERATURE not in kwargs:
             return
         target = self._convert_to_protocol(float(kwargs[ATTR_TEMPERATURE]))
-        await self._apply(target_temp=target, power=True)
+        await self._apply(target_temp=target)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set the HVAC mode."""
@@ -210,7 +210,7 @@ class TfiacClimateEntity(ClimateEntity):
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set the fan mode."""
-        await self._apply(fan_mode=fan_mode, power=True)
+        await self._apply(fan_mode=fan_mode)
 
     async def async_set_swing_mode(self, swing_mode: str) -> None:
         """Set the swing mode."""
@@ -240,7 +240,7 @@ class TfiacClimateEntity(ClimateEntity):
         await self._run_and_refresh(self._client.async_set_state(**kwargs))
 
     async def _run_and_refresh(self, coro: Any) -> None:
-        """Await a client command and store the returned status."""
+        """Await a client command and write the optimistic state."""
         try:
             self._status = await coro
             self._available = True
