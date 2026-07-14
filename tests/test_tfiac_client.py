@@ -32,7 +32,9 @@ class TfiacClientTest(unittest.IsolatedAsyncioTestCase):
         client._last_update = time()
         messages: list[str] = []
 
-        async def send(message: str, host: str | None = None) -> bytes:
+        async def send(
+            message: str, host: str | None = None, **kwargs: object
+        ) -> bytes:
             messages.append(message)
             return b"<msg />"
 
@@ -65,7 +67,9 @@ class TfiacClientTest(unittest.IsolatedAsyncioTestCase):
         client._last_update = time()
         messages: list[str] = []
 
-        async def send(message: str, host: str | None = None) -> bytes:
+        async def send(
+            message: str, host: str | None = None, **kwargs: object
+        ) -> bytes:
             messages.append(message)
             return b"<msg />"
 
@@ -84,7 +88,9 @@ class TfiacClientTest(unittest.IsolatedAsyncioTestCase):
         client._last_update = time()
         messages: list[str] = []
 
-        async def send(message: str, host: str | None = None) -> bytes:
+        async def send(
+            message: str, host: str | None = None, **kwargs: object
+        ) -> bytes:
             messages.append(message)
             return b"<msg />"
 
@@ -103,7 +109,9 @@ class TfiacClientTest(unittest.IsolatedAsyncioTestCase):
         client._last_update = time()
         messages: list[str] = []
 
-        async def send(message: str, host: str | None = None) -> bytes:
+        async def send(
+            message: str, host: str | None = None, **kwargs: object
+        ) -> bytes:
             messages.append(message)
             return b"<msg />"
 
@@ -124,7 +132,9 @@ class TfiacClientTest(unittest.IsolatedAsyncioTestCase):
         client._last_update = time()
         messages: list[str] = []
 
-        async def send(message: str, host: str | None = None) -> bytes:
+        async def send(
+            message: str, host: str | None = None, **kwargs: object
+        ) -> bytes:
             messages.append(message)
             return b"<msg />"
 
@@ -137,6 +147,42 @@ class TfiacClientTest(unittest.IsolatedAsyncioTestCase):
             "<Opt_sleepMode>sleepMode1:1:2:3:4:5:6:7:8:9:10</Opt_sleepMode>",
             messages[0],
         )
+
+    async def test_status_request_retries_after_timeout(self) -> None:
+        client = TfiacClient("192.0.2.1", retries=1, retry_delay=0)
+        attempts = 0
+
+        async def send_once(message: str, host: str | None = None) -> bytes:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise TimeoutError
+            return b"reply"
+
+        client._send_once = send_once  # type: ignore[method-assign]
+
+        response = await client._send("status")
+
+        self.assertEqual(response, b"reply")
+        self.assertEqual(attempts, 2)
+
+    async def test_set_command_is_not_retried(self) -> None:
+        client = TfiacClient("192.0.2.1", retries=3, retry_delay=0)
+        client._status = _status()
+        client._last_update = time()
+        attempts = 0
+
+        async def send_once(message: str, host: str | None = None) -> bytes:
+            nonlocal attempts
+            attempts += 1
+            raise TimeoutError
+
+        client._send_once = send_once  # type: ignore[method-assign]
+
+        with self.assertRaises(TimeoutError):
+            await client.async_set_state(options={"BeepEnable": "off"})
+
+        self.assertEqual(attempts, 1)
 
 
 if __name__ == "__main__":

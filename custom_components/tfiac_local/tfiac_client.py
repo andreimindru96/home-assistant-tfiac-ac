@@ -11,7 +11,7 @@ from time import time
 from typing import Any
 from xml.etree import ElementTree
 
-from .const import DEFAULT_PORT
+from .const import DEFAULT_PORT, DEFAULT_RETRIES
 
 SHORT_WAIT = 2
 STATUS_MESSAGE = (
@@ -171,11 +171,17 @@ class TfiacClient:
         *,
         port: int = DEFAULT_PORT,
         timeout: float = 5.0,
+        retries: int = DEFAULT_RETRIES,
+        retry_delay: float = 0.5,
         min_update_interval: float = SHORT_WAIT,
     ) -> None:
+        if retries < 0:
+            raise ValueError("retries must be zero or greater")
         self.host = host
         self.port = port
         self.timeout = timeout
+        self.retries = retries
+        self.retry_delay = retry_delay
         self.min_update_interval = min_update_interval
         self._status: TfiacStatus | None = None
         self._last_update = 0.0
@@ -190,8 +196,8 @@ class TfiacClient:
         """Build a protocol sequence value."""
         return str(int(time() * 1000))[-7:]
 
-    async def _send(self, message: str, host: str | None = None) -> bytes:
-        """Send a UDP message and wait for a single reply."""
+    async def _send_once(self, message: str, host: str | None = None) -> bytes:
+        """Send one UDP message and wait for a single reply."""
         target_host = host or self.host
         loop = asyncio.get_running_loop()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -206,6 +212,24 @@ class TfiacClient:
             return data
         finally:
             sock.close()
+
+    async def _send(
+        self,
+        message: str,
+        host: str | None = None,
+        *,
+        retries: int | None = None,
+    ) -> bytes:
+        """Send a UDP message, retrying dropped replies when requested."""
+        retry_count = self.retries if retries is None else retries
+        for attempt in range(retry_count + 1):
+            try:
+                return await self._send_once(message, host)
+            except TimeoutError:
+                if attempt == retry_count:
+                    raise
+                await asyncio.sleep(self.retry_delay * (attempt + 1))
+        raise RuntimeError("Unreachable retry loop")
 
     async def async_update(self, *, force: bool = False) -> TfiacStatus:
         """Fetch the latest device status."""
@@ -298,7 +322,10 @@ class TfiacClient:
             )
         )
 
-        await self._send(SET_MESSAGE.format(seq=self.seq, message=payload))
+        await self._send(
+            SET_MESSAGE.format(seq=self.seq, message=payload),
+            retries=0,
+        )
         self._status = TfiacStatus.from_values(raw)
         self._last_update = time()
 

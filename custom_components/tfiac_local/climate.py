@@ -22,10 +22,12 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 from .const import (
     CONF_DISPLAY_UNIT,
     CONF_PROTOCOL_UNIT,
+    CONF_RETRIES,
     CONF_TIMEOUT,
     DEFAULT_DISPLAY_UNIT,
     DEFAULT_NAME,
     DEFAULT_PROTOCOL_UNIT,
+    DEFAULT_RETRIES,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TIMEOUT,
     FAN_MODES,
@@ -63,6 +65,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
             ["C", "F", "c", "f"]
         ),
         vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): vol.Coerce(float),
+        vol.Optional(CONF_RETRIES, default=DEFAULT_RETRIES): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=5)
+        ),
         vol.Optional("scan_interval", default=timedelta(seconds=DEFAULT_SCAN_INTERVAL)): (
             cv.time_period
         ),
@@ -82,6 +87,7 @@ async def async_setup_platform(
         client=TfiacClient(
             config[CONF_HOST],
             timeout=config[CONF_TIMEOUT],
+            retries=config[CONF_RETRIES],
         ),
         name=config[CONF_NAME],
         display_unit=normalize_unit(config[CONF_DISPLAY_UNIT]),

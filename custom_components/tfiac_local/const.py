@@ -7,10 +7,12 @@ DEFAULT_SCAN_INTERVAL = 30
 DEFAULT_DISPLAY_UNIT = "C"
 DEFAULT_PROTOCOL_UNIT = "F"
 DEFAULT_TIMEOUT = 5.0
+DEFAULT_RETRIES = 1
 
 CONF_DISPLAY_UNIT = "temperature_unit"
 CONF_PROTOCOL_UNIT = "protocol_temperature_unit"
 CONF_TIMEOUT = "timeout"
+CONF_RETRIES = "retries"
 
 PROTOCOL_TO_HVAC_STR = {
     "cool": "cool",

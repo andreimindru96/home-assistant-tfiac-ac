@@ -6,7 +6,7 @@ import argparse
 import asyncio
 import json
 
-from .const import HVAC_STR_TO_PROTOCOL
+from .const import DEFAULT_RETRIES, HVAC_STR_TO_PROTOCOL
 from .tfiac_client import TfiacClient, normalize_unit
 
 
@@ -25,7 +25,11 @@ async def _run(args: argparse.Namespace) -> int:
         print(json.dumps(devices, indent=2))
         return 0
 
-    client = TfiacClient(args.host, timeout=args.timeout)
+    client = TfiacClient(
+        args.host,
+        timeout=args.timeout,
+        retries=args.retries,
+    )
 
     if args.command == "status":
         status = await client.async_update(force=True)
@@ -72,7 +76,6 @@ async def _run(args: argparse.Namespace) -> int:
         swing_mode=args.swing,
         options=options,
         sleep_mode={"on": True, "off": False}.get(args.sleep),
-        refresh_after=True,
     )
     print(
         json.dumps(
@@ -103,10 +106,12 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status", help="Read current device state")
     status.add_argument("--host", required=True)
     status.add_argument("--timeout", type=float, default=5.0)
+    status.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
 
     set_cmd = subparsers.add_parser("set", help="Update the device state")
     set_cmd.add_argument("--host", required=True)
     set_cmd.add_argument("--timeout", type=float, default=5.0)
+    set_cmd.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
     set_cmd.add_argument("--power", choices=["on", "off"])
     set_cmd.add_argument("--hvac", choices=sorted(HVAC_STR_TO_PROTOCOL))
     set_cmd.add_argument("--temperature", type=float)

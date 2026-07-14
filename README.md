@@ -30,12 +30,14 @@ climate:
     temperature_unit: C
     protocol_temperature_unit: F
     timeout: 5
+    retries: 1
 
 switch:
   - platform: tfiac_local
     host: 192.168.1.50
     name: Starlight AC
     timeout: 5
+    retries: 1
 ```
 
 Notes:
@@ -46,6 +48,8 @@ Notes:
 - Start with `protocol_temperature_unit: F`, because that matches the historical `pytfiac` code. If the setpoint behaves incorrectly, switch it to `C`.
 - The `switch` entry exposes the binary options supported by the device. It uses
   the same host as the climate entry but does not need the temperature settings.
+- `retries` is the number of additional attempts for a dropped UDP status reply.
+  The default is `1`; try `2` or `3` for an unreliable Wi-Fi module.
 
 ## Home Assistant option switches
 
@@ -77,6 +81,32 @@ python3 -m custom_components.tfiac_local.cli discover
 ```
 
 If broadcast discovery does not find the device, check your router DHCP lease table or the Intelligent AC app to identify the AC IP.
+
+## Troubleshooting intermittent availability
+
+TFIAC devices use connectionless UDP, and some compatible Wi-Fi modules
+occasionally miss a status request. The integration retries one dropped status
+reply by default. For a device that still becomes unavailable, increase retries
+in both YAML entries:
+
+```yaml
+timeout: 5
+retries: 3
+```
+
+Also check that the AC has a stable DHCP reservation, that UDP port `7777` is
+allowed between the Home Assistant host/container and the AC network, and that
+the container is not behind a firewall which expires or filters UDP replies.
+
+The CLI `set` command reports the state it sent after the AC acknowledges the
+command. Use a separate `status` command when an explicit readback is needed:
+
+```bash
+python3 -m custom_components.tfiac_local.cli status \
+  --host 192.168.1.50 \
+  --timeout 5 \
+  --retries 3
+```
 
 ## Read current status
 

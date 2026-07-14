@@ -18,7 +18,14 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from .const import CONF_TIMEOUT, DEFAULT_NAME, DEFAULT_SCAN_INTERVAL, DEFAULT_TIMEOUT
+from .const import (
+    CONF_RETRIES,
+    CONF_TIMEOUT,
+    DEFAULT_NAME,
+    DEFAULT_RETRIES,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_TIMEOUT,
+)
 from .tfiac_client import (
     BINARY_OPTION_FIELDS,
     SLEEP_MODE_FIELD,
@@ -43,6 +50,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): vol.Coerce(float),
+        vol.Optional(CONF_RETRIES, default=DEFAULT_RETRIES): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=5)
+        ),
     }
 )
 
@@ -54,7 +64,11 @@ async def async_setup_platform(
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
     """Set up option switches for a local TFIAC device from YAML."""
-    client = TfiacClient(config[CONF_HOST], timeout=config[CONF_TIMEOUT])
+    client = TfiacClient(
+        config[CONF_HOST],
+        timeout=config[CONF_TIMEOUT],
+        retries=config[CONF_RETRIES],
+    )
     try:
         status = await client.async_update(force=True)
     except Exception as err:
