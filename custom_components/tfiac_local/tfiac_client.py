@@ -24,6 +24,16 @@ SET_MESSAGE = (
     "</msg>"
 )
 
+BINARY_OPTION_FIELDS = frozenset(
+    {
+        "Opt_display",
+        "Opt_ECO",
+        "Opt_super",
+        "Opt_healthy",
+        "BeepEnable",
+    }
+)
+
 
 def c_to_f(value: float) -> float:
     """Convert Celsius to Fahrenheit."""
@@ -196,10 +206,27 @@ class TfiacClient:
         target_temp: float | None = None,
         fan_mode: str | None = None,
         swing_mode: str | None = None,
+        options: Mapping[str, str] | None = None,
         refresh_before: bool = False,
         refresh_after: bool = False,
     ) -> TfiacStatus:
         """Update the state by sending a full SetMessage payload."""
+        option_values = dict(options or {})
+        unsupported = option_values.keys() - BINARY_OPTION_FIELDS
+        if unsupported:
+            fields = ", ".join(sorted(unsupported))
+            raise ValueError(f"Unsupported option field(s): {fields}")
+        invalid = {
+            key: value
+            for key, value in option_values.items()
+            if value not in {"on", "off"}
+        }
+        if invalid:
+            fields = ", ".join(
+                f"{key}={value!r}" for key, value in sorted(invalid.items())
+            )
+            raise ValueError(f"Option values must be 'on' or 'off': {fields}")
+
         status = await self.async_update(force=refresh_before)
         raw = dict(status.raw)
 
@@ -214,6 +241,7 @@ class TfiacClient:
         horizontal, vertical = _swing_to_flags(swing)
         raw["WindDirection_H"] = horizontal
         raw["WindDirection_V"] = vertical
+        raw.update(option_values)
 
         payload = (
             f"<TurnOn>{raw['TurnOn']}</TurnOn>"
@@ -222,6 +250,9 @@ class TfiacClient:
             f"<WindSpeed>{raw['WindSpeed']}</WindSpeed>"
             f"<WindDirection_H>{raw['WindDirection_H']}</WindDirection_H>"
             f"<WindDirection_V>{raw['WindDirection_V']}</WindDirection_V>"
+            + "".join(
+                f"<{key}>{value}</{key}>" for key, value in option_values.items()
+            )
         )
 
         await self._send(SET_MESSAGE.format(seq=self.seq, message=payload))

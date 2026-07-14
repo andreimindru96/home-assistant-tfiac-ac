@@ -10,6 +10,15 @@ from .const import HVAC_STR_TO_PROTOCOL
 from .tfiac_client import TfiacClient, normalize_unit
 
 
+CLI_OPTION_FIELDS = {
+    "display": "Opt_display",
+    "eco": "Opt_ECO",
+    "super_mode": "Opt_super",
+    "healthy": "Opt_healthy",
+    "beep": "BeepEnable",
+}
+
+
 async def _run(args: argparse.Namespace) -> int:
     if args.command == "discover":
         devices = await TfiacClient.async_discover(timeout=args.timeout)
@@ -49,12 +58,19 @@ async def _run(args: argparse.Namespace) -> int:
                 convert_temperature(args.temperature, display_unit, protocol_unit)
             )
 
+    options = {
+        field: value
+        for argument, field in CLI_OPTION_FIELDS.items()
+        if (value := getattr(args, argument)) is not None
+    }
+
     status = await client.async_set_state(
         power={"on": True, "off": False}.get(args.power) if args.power else None,
         hvac_mode=HVAC_STR_TO_PROTOCOL.get(args.hvac) if args.hvac else None,
         target_temp=protocol_temp,
         fan_mode=args.fan,
         swing_mode=args.swing,
+        options=options,
         refresh_after=True,
     )
     print(
@@ -97,6 +113,13 @@ def build_parser() -> argparse.ArgumentParser:
     set_cmd.add_argument("--swing", choices=["Off", "Vertical", "Horizontal", "Both"])
     set_cmd.add_argument("--display-unit", choices=["C", "F", "c", "f"], default="C")
     set_cmd.add_argument("--protocol-unit", choices=["C", "F", "c", "f"], default="F")
+    set_cmd.add_argument("--display", "--Opt_display", choices=["on", "off"])
+    set_cmd.add_argument("--eco", "--Opt_ECO", choices=["on", "off"])
+    set_cmd.add_argument(
+        "--super", "--Opt_super", dest="super_mode", choices=["on", "off"]
+    )
+    set_cmd.add_argument("--healthy", "--Opt_healthy", choices=["on", "off"])
+    set_cmd.add_argument("--beep", "--BeepEnable", choices=["on", "off"])
 
     return parser
 

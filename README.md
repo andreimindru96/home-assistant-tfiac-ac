@@ -69,6 +69,24 @@ python3 -m custom_components.tfiac_local.cli set \
   --protocol-unit F
 ```
 
+Binary device options can be changed independently or included with the other
+settings:
+
+```bash
+python3 -m custom_components.tfiac_local.cli set \
+  --host 192.168.1.50 \
+  --display on \
+  --eco off \
+  --super off \
+  --healthy on \
+  --beep off
+```
+
+Every option accepts `on` or `off`. The raw names printed by `status` are also
+accepted as aliases: `--Opt_display`, `--Opt_ECO`, `--Opt_super`,
+`--Opt_healthy`, and `--BeepEnable`. For example, both `--beep off` and
+`--BeepEnable off` disable the beeper.
+
 ## Behavior notes
 
 - HVAC mode mapping:
