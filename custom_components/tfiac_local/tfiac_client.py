@@ -30,6 +30,8 @@ BINARY_OPTION_FIELDS = frozenset(
         "Opt_ECO",
         "Opt_super",
         "Opt_healthy",
+        "Opt_antiMildew",
+        "CleannessEnable",
         "BeepEnable",
     }
 )

@@ -57,6 +57,25 @@ class TfiacClientTest(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "must be 'on' or 'off'"):
             await client.async_set_state(options={"BeepEnable": "disabled"})
 
+    async def test_accepts_cleaning_options(self) -> None:
+        client = TfiacClient("192.0.2.1")
+        client._status = _status()
+        client._last_update = time()
+        messages: list[str] = []
+
+        async def send(message: str, host: str | None = None) -> bytes:
+            messages.append(message)
+            return b"<msg />"
+
+        client._send = send  # type: ignore[method-assign]
+
+        await client.async_set_state(
+            options={"CleannessEnable": "on", "Opt_antiMildew": "on"}
+        )
+
+        self.assertIn("<CleannessEnable>on</CleannessEnable>", messages[0])
+        self.assertIn("<Opt_antiMildew>on</Opt_antiMildew>", messages[0])
+
 
 if __name__ == "__main__":
     unittest.main()

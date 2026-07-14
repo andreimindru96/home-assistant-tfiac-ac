@@ -30,6 +30,12 @@ climate:
     temperature_unit: C
     protocol_temperature_unit: F
     timeout: 5
+
+switch:
+  - platform: tfiac_local
+    host: 192.168.1.50
+    name: Starlight AC
+    timeout: 5
 ```
 
 Notes:
@@ -38,6 +44,25 @@ Notes:
 - `temperature_unit` is what Home Assistant should show.
 - `protocol_temperature_unit` is what the AC expects on the wire.
 - Start with `protocol_temperature_unit: F`, because that matches the historical `pytfiac` code. If the setpoint behaves incorrectly, switch it to `C`.
+- The `switch` entry exposes the binary options supported by the device. It uses
+  the same host as the climate entry but does not need the temperature settings.
+
+## Home Assistant option switches
+
+The switch platform reads the device status during setup and creates only the
+controls reported by that AC. Supported controls are:
+
+- Display
+- Eco mode
+- Turbo mode (`Opt_super`)
+- Health mode (`Opt_healthy`)
+- Anti-mildew
+- Clean mode (`CleannessEnable`)
+- Beeper (`BeepEnable`)
+
+Restart Home Assistant after adding the `switch` configuration. The entities
+will have names such as `switch.starlight_ac_beeper` and
+`switch.starlight_ac_eco_mode`.
 
 ## Discover the device
 
