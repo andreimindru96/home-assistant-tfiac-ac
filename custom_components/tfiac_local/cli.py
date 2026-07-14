@@ -71,6 +71,7 @@ async def _run(args: argparse.Namespace) -> int:
         fan_mode=args.fan,
         swing_mode=args.swing,
         options=options,
+        sleep_mode={"on": True, "off": False}.get(args.sleep),
         refresh_after=True,
     )
     print(
@@ -120,6 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     set_cmd.add_argument("--healthy", "--Opt_healthy", choices=["on", "off"])
     set_cmd.add_argument("--beep", "--BeepEnable", choices=["on", "off"])
+    set_cmd.add_argument("--sleep", "--Opt_sleepMode", choices=["on", "off"])
 
     return parser
 

@@ -59,6 +59,10 @@ controls reported by that AC. Supported controls are:
 - Anti-mildew
 - Clean mode (`CleannessEnable`)
 - Beeper (`BeepEnable`)
+- Sleep mode (`Opt_sleepMode`)
+
+Sleep and Eco modes are mutually exclusive on these devices. Enabling either
+switch automatically disables the other in the same command.
 
 Restart Home Assistant after adding the `switch` configuration. The entities
 will have names such as `switch.starlight_ac_beeper` and
@@ -104,13 +108,14 @@ python3 -m custom_components.tfiac_local.cli set \
   --eco off \
   --super off \
   --healthy on \
-  --beep off
+  --beep off \
+  --sleep off
 ```
 
 Every option accepts `on` or `off`. The raw names printed by `status` are also
 accepted as aliases: `--Opt_display`, `--Opt_ECO`, `--Opt_super`,
-`--Opt_healthy`, and `--BeepEnable`. For example, both `--beep off` and
-`--BeepEnable off` disable the beeper.
+`--Opt_healthy`, `--BeepEnable`, and `--Opt_sleepMode`. For example, both
+`--beep off` and `--BeepEnable off` disable the beeper.
 
 ## Behavior notes
 

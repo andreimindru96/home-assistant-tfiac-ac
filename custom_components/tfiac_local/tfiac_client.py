@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import socket
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -35,6 +36,9 @@ BINARY_OPTION_FIELDS = frozenset(
         "BeepEnable",
     }
 )
+SLEEP_MODE_FIELD = "Opt_sleepMode"
+_SLEEP_MODE_COMPONENTS = 10
+_SLEEP_COMPONENT_PATTERN = re.compile(r"[+-]?\d+(?:\.\d+)?")
 
 
 def c_to_f(value: float) -> float:
@@ -69,6 +73,23 @@ def _format_temperature(value: float) -> str:
     if abs(value - round(value)) < 0.01:
         return str(int(round(value)))
     return f"{value:.1f}"
+
+
+def _format_sleep_mode(current: str, enabled: bool) -> str:
+    """Toggle sleep mode while preserving a valid device schedule."""
+    parts = current.split(":")
+    schedule = parts[1:]
+    if len(schedule) != _SLEEP_MODE_COMPONENTS or not all(
+        _SLEEP_COMPONENT_PATTERN.fullmatch(value) for value in schedule
+    ):
+        schedule = ["0"] * _SLEEP_MODE_COMPONENTS
+    mode = "sleepMode1" if enabled else "off"
+    return ":".join([mode, *schedule])
+
+
+def _sleep_mode_is_on(value: str) -> bool:
+    """Return whether a structured sleep mode value is enabled."""
+    return value.split(":", 1)[0] != "off"
 
 
 def _wind_flags_to_swing(horizontal: str, vertical: str) -> str:
@@ -209,6 +230,7 @@ class TfiacClient:
         fan_mode: str | None = None,
         swing_mode: str | None = None,
         options: Mapping[str, str] | None = None,
+        sleep_mode: bool | None = None,
         refresh_before: bool = False,
         refresh_after: bool = False,
     ) -> TfiacStatus:
@@ -228,9 +250,28 @@ class TfiacClient:
                 f"{key}={value!r}" for key, value in sorted(invalid.items())
             )
             raise ValueError(f"Option values must be 'on' or 'off': {fields}")
+        if sleep_mode is True and option_values.get("Opt_ECO") == "on":
+            raise ValueError("Eco mode and sleep mode cannot be enabled together")
 
         status = await self.async_update(force=refresh_before)
         raw = dict(status.raw)
+
+        current_sleep_mode = raw.get(
+            SLEEP_MODE_FIELD,
+            _format_sleep_mode("", enabled=False),
+        )
+        if (
+            option_values.get("Opt_ECO") == "on"
+            and _sleep_mode_is_on(current_sleep_mode)
+        ):
+            sleep_mode = False
+        if sleep_mode is True and raw.get("Opt_ECO") == "on":
+            option_values["Opt_ECO"] = "off"
+        if sleep_mode is not None:
+            option_values[SLEEP_MODE_FIELD] = _format_sleep_mode(
+                current_sleep_mode,
+                enabled=sleep_mode,
+            )
 
         raw["TurnOn"] = "on" if (power if power is not None else status.is_on) else "off"
         raw["BaseMode"] = hvac_mode or status.base_mode
@@ -277,6 +318,10 @@ class TfiacClient:
             power=True,
             hvac_mode=status.base_mode or "selfFeel",
         )
+
+    async def async_set_sleep_mode(self, enabled: bool) -> TfiacStatus:
+        """Toggle sleep mode while preserving its current schedule values."""
+        return await self.async_set_state(sleep_mode=enabled)
 
     @staticmethod
     async def async_discover(

@@ -31,6 +31,18 @@ class CliParserTest(unittest.TestCase):
         self.assertEqual(friendly.eco, raw.eco)
         self.assertEqual(friendly.eco, "on")
 
+    def test_sleep_option(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(
+            ["set", "--host", "192.0.2.1", "--sleep", "on"]
+        )
+        raw = parser.parse_args(
+            ["set", "--host", "192.0.2.1", "--Opt_sleepMode", "on"]
+        )
+
+        self.assertEqual(args.sleep, "on")
+        self.assertEqual(args.sleep, raw.sleep)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,7 +19,12 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import CONF_TIMEOUT, DEFAULT_NAME, DEFAULT_SCAN_INTERVAL, DEFAULT_TIMEOUT
-from .tfiac_client import BINARY_OPTION_FIELDS, TfiacClient, TfiacStatus
+from .tfiac_client import (
+    BINARY_OPTION_FIELDS,
+    SLEEP_MODE_FIELD,
+    TfiacClient,
+    TfiacStatus,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,6 +82,16 @@ async def async_setup_platform(
         for field, (label, icon) in OPTION_SWITCHES.items()
         if field in status.raw
     ]
+    if SLEEP_MODE_FIELD in status.raw:
+        entities.append(
+            TfiacSleepModeSwitch(
+                coordinator=coordinator,
+                client=client,
+                field=SLEEP_MODE_FIELD,
+                name=f"{config[CONF_NAME]} Sleep mode",
+                icon="mdi:weather-night",
+            )
+        )
     async_add_entities(entities)
 
 
@@ -94,7 +109,7 @@ class TfiacOptionSwitch(
         name: str,
         icon: str,
     ) -> None:
-        if field not in BINARY_OPTION_FIELDS:
+        if field not in BINARY_OPTION_FIELDS and field != SLEEP_MODE_FIELD:
             raise ValueError(f"Unsupported TFIAC option field: {field}")
         super().__init__(coordinator)
         self._client = client
@@ -128,4 +143,27 @@ class TfiacOptionSwitch(
     async def _async_set_option(self, value: str) -> None:
         """Send an option update and publish the optimistic device status."""
         status = await self._client.async_set_state(options={self._field: value})
+        self.coordinator.async_set_updated_data(status)
+
+
+class TfiacSleepModeSwitch(TfiacOptionSwitch):
+    """Switch for the structured TFIAC sleep mode option."""
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether the structured sleep mode value is enabled."""
+        value = self.coordinator.data.raw.get(self._field, "off")
+        return value.split(":", 1)[0] != "off"
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable sleep mode."""
+        await self._async_set_sleep_mode(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable sleep mode."""
+        await self._async_set_sleep_mode(False)
+
+    async def _async_set_sleep_mode(self, enabled: bool) -> None:
+        """Send a structured sleep mode update."""
+        status = await self._client.async_set_sleep_mode(enabled)
         self.coordinator.async_set_updated_data(status)
